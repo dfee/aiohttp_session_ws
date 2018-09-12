@@ -2,7 +2,16 @@ import asyncio
 import collections.abc
 import functools
 import inspect
-import typing
+from typing import (
+    Awaitable,
+    Callable,
+    Dict,
+    Hashable,
+    Iterator,
+    Optional,
+    Set,
+    Union,
+)
 import uuid
 
 from aiohttp import web
@@ -15,7 +24,7 @@ DEFAULT_SESSION_KEY = "aiohttp_session_ws_id"
 REGISTRY_KEY = "aiohttp_session_ws_registry"
 
 
-async def get_session_ws_id(request: web.Request) -> typing.Hashable:
+async def get_session_ws_id(request: web.Request) -> Hashable:
     """
     Get the "session ws id" from a session
     """
@@ -44,7 +53,7 @@ async def ensure_session_ws_id(request: web.Request) -> None:
 
 
 async def schedule_close_all_session_ws(
-    request: web.Request, response: typing.Union[web.Response, web.HTTPFound]
+    request: web.Request, response: Union[web.Response, web.HTTPFound]
 ) -> None:
     """
     Removes the wesocket session_ws_id from the session, disables the response's
@@ -58,8 +67,7 @@ async def schedule_close_all_session_ws(
 
 @web.middleware
 async def session_ws_middleware(
-    request: web.Request,
-    handler: typing.Callable[[web.Request], web.StreamResponse],
+    request: web.Request, handler: Callable[[web.Request], web.StreamResponse]
 ) -> web.StreamResponse:
     """
     Sets the "session_ws id" on outgoing requests.
@@ -76,30 +84,30 @@ class SessionWSRegistry(collections.abc.Mapping):
     def __init__(
         self,
         *,
-        id_factory: typing.Union[
-            typing.Callable[[web.Request], typing.Hashable],
-            typing.Callable[[web.Request], typing.Awaitable[typing.Hashable]],
+        id_factory: Union[
+            Callable[[web.Request], Hashable],
+            Callable[[web.Request], Awaitable[Hashable]],
         ] = DEFAULT_ID_FACTORY,
-        session_key: typing.Hashable = DEFAULT_SESSION_KEY
+        session_key: Hashable = DEFAULT_SESSION_KEY
     ):
-        self._registry: typing.Dict[str, typing.Set[web.WebSocketResponse]] = {}
+        self._registry = {}  # type: Dict[str, Set[web.WebSocketResponse]]
         self.id_factory = id_factory
         self.session_key = session_key
 
-    def __getitem__(self, key: str) -> typing.Set[web.WebSocketResponse]:
+    def __getitem__(self, key: str) -> Set[web.WebSocketResponse]:
         return self._registry[key]
 
-    def __iter__(self) -> typing.Iterator[str]:
+    def __iter__(self) -> Iterator[str]:
         return iter(self._registry)
 
     def __len__(self) -> int:
         return len(self._registry)
 
-    async def generate_id(self, request: web.Request) -> typing.Hashable:
+    async def generate_id(self, request: web.Request) -> Hashable:
         result = self.id_factory(request)
         return await result if inspect.isawaitable(result) else result
 
-    async def get_id(self, request: web.Request) -> typing.Hashable:
+    async def get_id(self, request: web.Request) -> Hashable:
         """
         Get the session_ws id from a request
         """
@@ -134,7 +142,7 @@ class SessionWSRegistry(collections.abc.Mapping):
         wsrs = set().union(*self.values())
         await asyncio.gather(*[wsr.close() for wsr in wsrs])
 
-    async def close_all_session(self, session_ws_id: typing.Hashable) -> None:
+    async def close_all_session(self, session_ws_id: Hashable) -> None:
         """
         Close all websockets that share this session.
         Unlike `schedule_close_all_session`, `close_all_session` takes an id,
@@ -145,9 +153,7 @@ class SessionWSRegistry(collections.abc.Mapping):
         await asyncio.gather(*[wsr.close() for wsr in wsrs])
 
     async def schedule_close_all_session(
-        self,
-        request: web.Request,
-        response: typing.Union[web.Response, web.HTTPFound],
+        self, request: web.Request, response: Union[web.Response, web.HTTPFound]
     ) -> None:
         """
         Removes the wesocket session_ws_id from the session, disables the
@@ -164,7 +170,7 @@ class SessionWSRegistry(collections.abc.Mapping):
         response.force_close()
 
     def register(
-        self, session_ws_id: typing.Hashable, wsr: web.WebSocketResponse
+        self, session_ws_id: Hashable, wsr: web.WebSocketResponse
     ) -> None:
         """
         Adds the session_ws_id, wsr pair to the registry.
@@ -173,7 +179,7 @@ class SessionWSRegistry(collections.abc.Mapping):
         wsrs.add(wsr)
 
     def unregister(
-        self, session_ws_id: typing.Hashable, wsr: web.WebSocketResponse
+        self, session_ws_id: Hashable, wsr: web.WebSocketResponse
     ) -> None:
         """
         Removes the session_ws_id, wsr pair from the registry, and removes
@@ -202,8 +208,8 @@ def setup(app: web.Application, registry: SessionWSRegistry) -> None:
 
 
 def with_session_ws(
-    func: typing.Callable[[web.WebSocketResponse], None]
-) -> typing.Callable[[web.Request], web.WebSocketResponse]:
+    func: Callable[[web.WebSocketResponse], None]
+) -> Callable[[web.Request], web.WebSocketResponse]:
     """
     Provides the wrapped function with a websocket that's been registered
     with application's SessionWSRegistry.

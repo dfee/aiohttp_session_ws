@@ -10,16 +10,16 @@ import aiohttp_session
 import pytest
 
 from aiohttp_session_ws import (
-    REGISTRY_KEY,
     DEFAULT_SESSION_KEY,
+    REGISTRY_KEY,
     SessionWSRegistry,
     __version__,
     delete_session_ws_id,
     ensure_session_ws_id,
     get_session_ws_id,
+    new_session_ws_id,
     schedule_close_all_session_ws,
     session_ws_middleware,
-    new_session_ws_id,
     setup as setup_session_ws,
     with_session_ws,
 )
@@ -62,14 +62,14 @@ def cookie_jar(event_loop):
 
 
 @pytest.fixture
-async def client(event_loop, app, cookie_jar):
+def client(event_loop, app, cookie_jar):
     from aiohttp.test_utils import TestServer, TestClient
 
     _server = TestServer(app, loop=event_loop)
     _client = TestClient(_server, loop=event_loop, cookie_jar=cookie_jar)
-    await _client.start_server()
+    event_loop.run_until_complete(_client.start_server())
     yield _client
-    await _client.close()
+    event_loop.run_until_complete(_client.close())
 
 
 def test_version():

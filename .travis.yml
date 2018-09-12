@@ -1,0 +1,24 @@
+language: python
+python:
+- 3.6
+matrix:
+  include:
+  - python: 3.5
+    env: TOXENV=py35
+  - python: 3.6
+    env: TOXENV=py36
+  - python: nightly
+    env: TOXENV=py36,coverage,lint
+    env: TOXENV=py37
+    # https://github.com/travis-ci/travis-ci/issues/9542
+    # - python: pypy-6.0.0
+    #   env: TOXENV=pypy
+before_install:
+- pip install poetry tox
+install:
+- poetry install
+script:
+- tox
+after_success:
+- pip install coveralls
+- coveralls

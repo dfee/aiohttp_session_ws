@@ -1,5 +1,12 @@
+====================
 `aiohttp_session_ws`
 ====================
+
+.. image:: https://travis-ci.org/dfee/aiohttp_session_ws.svg?branch=master
+    :target: https://travis-ci.org/dfee/aiohttp_session_ws
+.. image:: https://coveralls.io/repos/github/dfee/aiohttp_session_ws/badge.svg?branch=master
+    :target: https://coveralls.io/github/dfee/aiohttp_session_ws?branch=master
+
 
 Simply put: associate your websockets with a user's session, and close those connections when you see fit.
 

@@ -7,7 +7,7 @@ matrix:
       env: TOXENV=py35
     - python: 3.6
       env: TOXENV=py36
-    - python: nightly
+    - python: 3.7
       env: TOXENV=py37,coverage,lint
       # https://github.com/travis-ci/travis-ci/issues/9542
       # - python: pypy-6.0.0

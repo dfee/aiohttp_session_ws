@@ -73,7 +73,7 @@ def client(event_loop, app, cookie_jar):
 
 
 def test_version():
-    assert __version__ == "1.1.0"
+    assert __version__ == "1.1.1"
 
 
 @pytest.mark.asyncio

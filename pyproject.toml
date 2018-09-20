@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "aiohttp_session_ws"
-version = "1.1.0"
+version = "1.1.1"
 
 authors = ["Devin Fee <devin@devinfee.com>"]
 description = "session-managed websockets for aiohttp"

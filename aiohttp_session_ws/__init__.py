@@ -19,7 +19,7 @@ import uuid
 from aiohttp import web
 import aiohttp_session
 
-__version__ = "1.1.0"
+__version__ = "1.1.1"
 
 DEFAULT_ID_FACTORY = lambda request: uuid.uuid4().hex
 DEFAULT_SESSION_KEY = "aiohttp_session_ws_id"

@@ -217,22 +217,17 @@ class session_ws:  # pylint: disable=C0103, invalid-name
     :param options: constructor options for to aiohttp.web.WebSocketResponse
     """
 
-    request: web.Request
-    options: Dict[str, Any]
-    response: web.WebSocketResponse
-    session_ws_id: Hashable
-
-    def __init__(self, request, **options):
+    def __init__(self, request: web.Request, **options: Dict[str, Any]) -> None:
         self.request = request
         self.options = options
-        self.response = None
-        self.session_ws_id = None
+        self.response = None  # type: Optional[web.WebSocketResponse]
+        self.session_ws_id = None  # type: Hashable
 
     @property
     def registry(self) -> SessionWSRegistry:
         return self.request.app[REGISTRY_KEY]
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> web.WebSocketResponse:
         self.response = web.WebSocketResponse(**self.options)
 
         self.session_ws_id = await get_session_ws_id(self.request)
@@ -251,6 +246,6 @@ class session_ws:  # pylint: disable=C0103, invalid-name
 
         return self.response
 
-    async def __aexit__(self, exc_type, exc, tb):
+    async def __aexit__(self, exc_type, exc, tb) -> None:
         # pylint: disable=C0103, invalid-name
         self.registry.unregister(self.session_ws_id, self.response)

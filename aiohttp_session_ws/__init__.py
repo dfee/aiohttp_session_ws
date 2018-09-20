@@ -90,7 +90,7 @@ class SessionWSRegistry(collections.abc.Mapping):
             Callable[[web.Request], Hashable],
             Callable[[web.Request], Awaitable[Hashable]],
         ] = DEFAULT_ID_FACTORY,
-        session_key: Hashable = DEFAULT_SESSION_KEY,
+        session_key: Hashable = DEFAULT_SESSION_KEY
     ):
         self._registry = {}  # type: Dict[str, Set[web.WebSocketResponse]]
         self.id_factory = id_factory

@@ -19,9 +19,9 @@ from aiohttp_session_ws import (
     get_session_ws_id,
     new_session_ws_id,
     schedule_close_all_session_ws,
+    session_ws,
     session_ws_middleware,
     setup as setup_session_ws,
-    with_session_ws,
 )
 
 # pylint: disable=C0103, invalid-name
@@ -73,7 +73,7 @@ def client(event_loop, app, cookie_jar):
 
 
 def test_version():
-    assert __version__ == "1.0.0"
+    assert __version__ == "1.1.0"
 
 
 @pytest.mark.asyncio
@@ -153,14 +153,15 @@ def make_cookie(data):
     return json.dumps({"session": data, "created": int(time.time())})
 
 
-class TestWithSessionWS:
+class TestSessionWS:
     @pytest.fixture
     def app(self):
-        @with_session_ws
-        async def handle_websocket(request, wsr):
-            session_ws_id = await get_session_ws_id(request)
-            async for msg in wsr:  # pylint: disable=W0612, unused-variable
-                await wsr.send_str(str(session_ws_id))
+        async def handle_websocket(request):
+            async with session_ws(request) as wsr:
+                session_ws_id = await get_session_ws_id(request)
+                async for msg in wsr:  # pylint: disable=W0612, unused-variable
+                    await wsr.send_str(str(session_ws_id))
+                return wsr
 
         app = web.Application(
             middlewares=[
@@ -383,11 +384,12 @@ class TestIntegration:
             await schedule_close_all_session_ws(request, response)
             return response
 
-        @with_session_ws
-        async def handle_websocket(request, wsr):
-            # pylint: disable=W0613, unused-argument
-            async for msg in wsr:
-                await wsr.send_str(msg.data)
+        async def handle_websocket(request):
+            async with session_ws(request) as wsr:
+                # pylint: disable=W0613, unused-argument
+                async for msg in wsr:
+                    await wsr.send_str(msg.data)
+                return wsr
 
         app = web.Application(
             middlewares=[

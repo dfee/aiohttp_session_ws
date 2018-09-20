@@ -3,6 +3,7 @@ import collections.abc
 import functools
 import inspect
 from typing import (
+    Any,
     Awaitable,
     Callable,
     Dict,
@@ -10,6 +11,7 @@ from typing import (
     Iterator,
     Optional,
     Set,
+    Tuple,
     Union,
 )
 import uuid
@@ -17,7 +19,7 @@ import uuid
 from aiohttp import web
 import aiohttp_session
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 DEFAULT_ID_FACTORY = lambda request: uuid.uuid4().hex
 DEFAULT_SESSION_KEY = "aiohttp_session_ws_id"
@@ -88,7 +90,7 @@ class SessionWSRegistry(collections.abc.Mapping):
             Callable[[web.Request], Hashable],
             Callable[[web.Request], Awaitable[Hashable]],
         ] = DEFAULT_ID_FACTORY,
-        session_key: Hashable = DEFAULT_SESSION_KEY
+        session_key: Hashable = DEFAULT_SESSION_KEY,
     ):
         self._registry = {}  # type: Dict[str, Set[web.WebSocketResponse]]
         self.id_factory = id_factory
@@ -207,35 +209,48 @@ def setup(app: web.Application, registry: SessionWSRegistry) -> None:
     app.on_shutdown.append(on_shutdown)
 
 
-def with_session_ws(
-    func: Callable[[web.WebSocketResponse], None]
-) -> Callable[[web.Request], web.WebSocketResponse]:
+class session_ws:  # pylint: disable=C0103, invalid-name
     """
-    Provides the wrapped function with a websocket that's been registered
-    with application's SessionWSRegistry.
+    AsyncContextManager that returns a prepared aiothtp.web.WebSocketResponse
+
+    :param request: the aiohttp.web.Request to upgrade to websockets
+    :param options: constructor options for to aiohttp.web.WebSocketResponse
     """
 
-    @functools.wraps(func)
-    async def handler(request: web.Request) -> web.WebSocketResponse:
-        registry = request.app[REGISTRY_KEY]
-        wsr = web.WebSocketResponse()
+    request: web.Request
+    options: Dict[str, Any]
+    response: web.WebSocketResponse
+    session_ws_id: Hashable
 
-        session_ws_id = await get_session_ws_id(request)
-        if session_ws_id is None:
-            await new_session_ws_id(request)
-            session_ws_id = await get_session_ws_id(request)
+    def __init__(self, request, **options):
+        self.request = request
+        self.options = options
+        self.response = None
+        self.session_ws_id = None
 
-        session = await aiohttp_session.get_session(request)
+    @property
+    def registry(self) -> SessionWSRegistry:
+        return self.request.app[REGISTRY_KEY]
+
+    async def __aenter__(self):
+        self.response = web.WebSocketResponse(**self.options)
+
+        self.session_ws_id = await get_session_ws_id(self.request)
+        if self.session_ws_id is None:
+            await new_session_ws_id(self.request)
+            self.session_ws_id = await get_session_ws_id(self.request)
+
+        session = await aiohttp_session.get_session(self.request)
         if session._changed:
-            storage = request[aiohttp_session.STORAGE_KEY]
-            await storage.save_session(request, wsr, session)
+            storage = self.request[aiohttp_session.STORAGE_KEY]
+            await storage.save_session(self.request, self.response, session)
 
-        registry.register(session_ws_id, wsr)
-        await wsr.prepare(request)  # send the session cookie along (if new)
+        self.registry.register(self.session_ws_id, self.response)
+        # send the session cookie along (if new)
+        await self.response.prepare(self.request)
 
-        await func(request, wsr)
+        return self.response
 
-        registry.unregister(session_ws_id, wsr)
-        return wsr
-
-    return handler
+    async def __aexit__(self, exc_type, exc, tb):
+        # pylint: disable=C0103, invalid-name
+        self.registry.unregister(self.session_ws_id, self.response)

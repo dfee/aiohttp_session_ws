@@ -9,9 +9,9 @@ from aiohttp_session_ws import (
     get_session_ws_id,
     new_session_ws_id,
     schedule_close_all_session_ws,
+    session_ws,
     session_ws_middleware,
     setup as setup_session_websockets,
-    with_session_ws,
 )
 
 
@@ -31,17 +31,18 @@ async def handle_reset(request):
     return response
 
 
-@with_session_ws
-async def handle_websocket(request, wsr):
+async def handle_websocket(request):
     # pylint: disable=W0613, unused-argument
-    connected_at = datetime.now()
-    session_ws_id = await get_session_ws_id(request)
-    while True:
-        await wsr.send_str(
-            f"Websocket associated with session [{session_ws_id}] "
-            f"connected for {(datetime.now() - connected_at).seconds}"
-        )
-        await asyncio.sleep(1)
+    async with session_ws(request) as wsr:
+        connected_at = datetime.now()
+        session_ws_id = await get_session_ws_id(request)
+        while True:
+            await wsr.send_str(
+                f"Websocket associated with session [{session_ws_id}] "
+                f"connected for {(datetime.now() - connected_at).seconds}"
+            )
+            await asyncio.sleep(1)
+        return wsr
 
 
 def make_app():

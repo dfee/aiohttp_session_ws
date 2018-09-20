@@ -36,16 +36,17 @@ The pieces of code in this example are taken from the ``demo`` directory of this
         await new_session_ws_id(request)
         return response
 
-    @with_session_ws
-    async def handle_websocket(request, wsr):
-        connected_at = datetime.now()
-        session_ws_id = await get_session_ws_id(request)
-        while True:
-            await wsr.send_str(
-                f"Websocket associated with session [{session_ws_id}] "
-                f"connected for {(datetime.now() - connected_at).seconds}"
-            )
-            await asyncio.sleep(1)
+    async def handle_websocket(request):
+        async with session_ws(request) as wsr:
+            connected_at = datetime.now()
+            session_ws_id = await get_session_ws_id(request)
+            while True:
+                await wsr.send_str(
+                    f"Websocket associated with session [{session_ws_id}] "
+                    f"connected for {(datetime.now() - connected_at).seconds}"
+                )
+                await asyncio.sleep(1)
+            return wsr
 
     def make_app():
         app = web.Application(
@@ -126,20 +127,31 @@ This also means that if you have users with re-connecting websockets, you should
         return response
 
 
-It maintains a registry of all known websocket connections (as registered through the ``with_session_ws`` wrapper).
+session_ws
+~~~~~~~~~~
 
-To actually track the websockets, you'll use ``with_session_ws``.
-This is a function wrapper and supplies an upgraded request, and its ``aiothttp.web.WebSocketResponse`` counterpart.
+To track the websockets, you'll use the async context manager ``session_ws``.
+This context manager upgrades the request, and provides its ``aiothttp.web.WebSocketResponse`` counterpart.
 Use if like this:
 
 .. code-block:: python
 
-    @with_session_ws
-    async def handle_websocket(request, ws):
-        async for msg in ws:
-            await ws.send_str(f'Heard: {ws.data}')
+    async def handle_websocket(request):
+        async with session_ws(request) as wsr:
+            async for msg in wsr:
+                await wsr.send_str(f'Heard: {ws.data}')
+            return wsr
 
 That's it. Pretty simple, right?
+If you'd like to provide the ``aiohttp.web.WebSocketResponse`` with initialization options (for example, the supported websocket protocols), pass those along to ``session_ws`` as named arguments.
+
+.. code-block:: python
+
+    async def handle_websocket(request):
+        async with session_ws(request, protocols=('graphql-ws',)) as wsr:
+            async for msg in wsr:
+                await wsr.send_str(f'Heard: {ws.data}')
+            return wsr
 
 
 As mentioned in the *Notes* below, it's important that your users have a ``session_ws id`` prior to attempting a websocket connection (hint: Safari).
@@ -181,7 +193,7 @@ Basic usage looks like this:
 Notes
 -----
 
-While ``with_session_ws`` generates an ``aiohttp_session_ws_id`` upon connect (if it's not present), some browsers don't respect ``Set-Cookie`` on a websocket upgrade (e.g. Safari).
+While ``session_ws`` generates an ``aiohttp_session_ws_id`` upon connect (if it's not present), some browsers don't respect ``Set-Cookie`` on a websocket upgrade (e.g. Safari).
 
 Therefore it's best if you ensure that an ``aiohttp_session_ws_id`` is present in the users session prior to attempting a websocket connection (if using ``aiohttp_session.SimpleCookieStorage`` or ``aiohttp_session.EncryptedCookieStorage``).
 
